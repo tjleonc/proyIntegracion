@@ -1,0 +1,19 @@
+body {
+  background: #f0f2f5;
+}
+
+h1 {
+  color: #333;
+}
+
+#mensaje {
+  font-weight: bold;
+}
+
+#mensaje.success {
+  color: green;
+}
+
+#mensaje.error {
+  color: red;
+}

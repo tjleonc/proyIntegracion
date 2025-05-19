@@ -1,19 +1,41 @@
 body {
-  background: #f0f2f5;
+    background-color: #f8f9fa;
+    padding-top: 20px;
 }
 
-h1 {
-  color: #333;
+.card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-#mensaje {
-  font-weight: bold;
+.hover-item:hover {
+    background-color: #e9ecef;
+    transition: background-color 0.2s;
 }
 
-#mensaje.success {
-  color: green;
+#resumenCompra {
+    transition: all 0.3s ease;
 }
 
-#mensaje.error {
-  color: red;
+.alert {
+    transition: all 0.3s ease;
+}
+
+.sin-stock {
+    opacity: 0.7;
+    cursor: not-allowed !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+#btnPagar {
+    transition: all 0.2s;
+}
+
+#btnPagar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }

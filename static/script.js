@@ -1,11 +1,71 @@
 let productoSeleccionado = null;
 let sucursalSeleccionada = null;
 
-const eventSource = new EventSource('/api/eventos-stock');
-eventSource.onmessage = (e) => {
-    mostrarNotificacion(`⚠️ ${e.data}`, 'warning');
-};
+// Configuración SSE mejorada
+function iniciarConexionSSE() {
+    if (typeof(EventSource) !== "undefined") {
+        const eventSource = new EventSource('/api/eventos-stock');
+        
+        eventSource.onmessage = (e) => {
+            mostrarNotificacion(`⚠️ ${e.data}`, 'warning');
+        };
+        
+        eventSource.onerror = (e) => {
+            console.error("Error en conexión SSE:", e);
+            eventSource.close();
+            
+            // Reconectar después de 5 segundos
+            setTimeout(iniciarConexionSSE, 5000);
+        };
+        
+        // Guardar referencia para poder cerrarla si es necesario
+        window.sseConnection = eventSource;
+    } else {
+        console.log("Tu navegador no soporta Server-Sent Events");
+        mostrarNotificacion("Tu navegador no soporta notificaciones en tiempo real", "info");
+    }
+}
 
+// Función para mostrar notificaciones mejorada
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    const iconos = {
+        'success': 'bi-check-circle-fill',
+        'danger': 'bi-exclamation-triangle-fill',
+        'warning': 'bi-exclamation-triangle-fill',
+        'info': 'bi-info-circle-fill'
+    };
+    
+    const notificacion = document.createElement('div');
+    notificacion.className = `alert alert-${tipo} alert-dismissible fade show`;
+    notificacion.role = "alert";
+    notificacion.innerHTML = `
+        <i class="bi ${iconos[tipo] || 'bi-info-circle-fill'}"></i>
+        ${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    const contenedor = document.getElementById('notificaciones');
+    contenedor.prepend(notificacion);
+    
+    // Inicializar el tooltip de Bootstrap para que funcione el cierre
+    const closeButton = notificacion.querySelector('.btn-close');
+    closeButton.addEventListener('click', () => {
+        notificacion.classList.remove('show');
+        setTimeout(() => notificacion.remove(), 150);
+    });
+    
+    // Configurar autoeliminación
+    const tiempoVisible = tipo === 'warning' ? 10000 : 5000;
+    setTimeout(() => {
+        notificacion.classList.remove('show');
+        setTimeout(() => notificacion.remove(), 150);
+    }, tiempoVisible);
+}
+
+// Iniciar la conexión SSE al cargar la página
+document.addEventListener('DOMContentLoaded', iniciarConexionSSE);
+
+// Función para buscar productos
 async function buscarProducto() {
     const query = document.getElementById('buscarInput').value.trim();
     if (!query) {
@@ -24,6 +84,7 @@ async function buscarProducto() {
     }
 }
 
+// Función para mostrar resultados de búsqueda
 function mostrarResultados(productos) {
     const contenedor = document.getElementById('resultadosBusqueda');
     contenedor.innerHTML = '';
@@ -62,6 +123,7 @@ function mostrarResultados(productos) {
     });
 }
 
+// Función para seleccionar un item
 function seleccionarItem(producto, sucursal) {
     productoSeleccionado = producto;
     sucursalSeleccionada = sucursal;
@@ -74,6 +136,7 @@ function seleccionarItem(producto, sucursal) {
     actualizarTotales();
 }
 
+// Función para actualizar totales
 function actualizarTotales() {
     const cantidad = parseInt(document.getElementById('cantidadInput').value) || 0;
     const precio = productoSeleccionado.precio;
@@ -86,6 +149,7 @@ function actualizarTotales() {
     document.getElementById('total').textContent = `$${total.toFixed(2)}`;
 }
 
+// Función para procesar pago con Transbank
 async function pagarConTransbank() {
     const cantidad = parseInt(document.getElementById('cantidadInput').value);
     
@@ -95,7 +159,6 @@ async function pagarConTransbank() {
     }
 
     try {
-
         const resVenta = await fetch('/api/ventas', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -134,22 +197,7 @@ async function pagarConTransbank() {
     }
 }
 
-function mostrarNotificacion(mensaje, tipo = 'info') {
-    const notificacion = document.createElement('div');
-    notificacion.className = `alert alert-${tipo} alert-dismissible fade show`;
-    notificacion.innerHTML = `
-        <i class="bi ${tipo === 'success' ? 'bi-check-circle' : type === 'danger' ? 'bi-exclamation-triangle' : 'bi-info-circle'}"></i>
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    document.getElementById('notificaciones').prepend(notificacion);
-    
-    setTimeout(() => {
-        notificacion.classList.remove('show');
-        setTimeout(() => notificacion.remove(), 150);
-    }, 5000);
-}
-
+// Event listener para búsqueda con Enter
 document.getElementById('buscarInput').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') buscarProducto();
 });

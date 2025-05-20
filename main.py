@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, Response, render_template
 from flask_mysqldb import MySQL
 from config import config
+
 import time
 import requests
 
@@ -91,17 +92,6 @@ def procesar_venta():
                     'mensaje': f'Error al actualizar stock para {item["nombre"]}'
                 }), 400
             
-            cursor.execute("""
-                INSERT INTO ventas 
-                (id_producto, id_sucursal, cantidad, precio_unitario, total, fecha)
-                VALUES (%s, %s, %s, %s, %s, NOW())
-            """, (
-                item['producto_id'],
-                item['sucursal_id'],
-                item['cantidad'],
-                item['precio_unitario'],
-                item['precio_unitario'] * item['cantidad']
-            ))
         
         mysql.connection.commit()
         

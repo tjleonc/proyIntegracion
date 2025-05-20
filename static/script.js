@@ -372,3 +372,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') buscarProducto();
     });
 });
+
+async function iniciarPagoTransbank(total) {
+    try {
+        const response = await fetch('/api/pago/transbank/iniciar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                monto: total,
+                ordenCompra: `ORD-${Date.now()}`,
+                sesionId: `SES-${Math.random().toString(36).substr(2, 9)}`
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al iniciar pago');
+        }
+        
+        // Redirigir a Transbank
+        window.location.href = data.url;
+        
+    } catch (error) {
+        console.error('Error en pago Transbank:', error);
+        mostrarNotificacion(`Error en pago: ${error.message}`, 'danger');
+    }
+}

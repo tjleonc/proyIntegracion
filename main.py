@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, Response, render_template
 from flask_mysqldb import MySQL
 from config import config
 import time
+import requests
 
 app = Flask(__name__)
 app.config.from_object(config['development'])
@@ -11,6 +12,16 @@ mysql = MySQL(app)
 def index():
     return render_template('index.html')
 
+def obtener_tipo_cambio():
+    try:
+        response = requests.get('https://mindicador.cl/api/dolar')
+        data = response.json()
+        return data['serie'][0]['valor']
+    except Exception as e:
+        print(f"Error al obtener tipo de cambio: {str(e)}")
+        return 850  # Valor por defecto si falla la API
+
+# Endpoint para buscar productos
 @app.route('/api/productos/buscar', methods=['GET'])
 def buscar_productos():
     query = request.args.get('q', '')
@@ -45,35 +56,66 @@ def buscar_productos():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Endpoint para procesar venta
 @app.route('/api/ventas', methods=['POST'])
-def crear_venta():
+def procesar_venta():
     data = request.json
     try:
         cursor = mysql.connection.cursor()
-        cursor.execute("""
-            SELECT stock FROM stock_sucursal
-            WHERE id_producto = %s AND id_sucursal = %s
-        """, (data['producto_id'], data['sucursal_id']))
         
-        stock = cursor.fetchone()
-        if not stock or stock['stock'] < data['cantidad']:
-            return jsonify({
-                'success': False,
-                'mensaje': f'Stock insuficiente. Disponible: {stock["stock"] if stock else 0}'
-            }), 400
+        # Verificar stock para cada item
+        for item in data['items']:
+            cursor.execute("""
+                SELECT stock FROM stock_sucursal
+                WHERE id_producto = %s AND id_sucursal = %s
+                FOR UPDATE
+            """, (item['producto_id'], item['sucursal_id']))
+            
+            stock = cursor.fetchone()
+            if not stock or stock['stock'] < item['cantidad']:
+                return jsonify({
+                    'success': False,
+                    'mensaje': f'Stock insuficiente para {item["nombre"]} en {item["sucursal"]}. Disponible: {stock["stock"] if stock else 0}'
+                }), 400
         
-        cursor.execute("""
-            UPDATE stock_sucursal
-            SET stock = stock - %s
-            WHERE id_producto = %s AND id_sucursal = %s
-        """, (data['cantidad'], data['producto_id'], data['sucursal_id']))
+        # Procesar cada venta
+        for item in data['items']:
+            cursor.execute("""
+                UPDATE stock_sucursal
+                SET stock = stock - %s
+                WHERE id_producto = %s AND id_sucursal = %s
+            """, (item['cantidad'], item['producto_id'], item['sucursal_id']))
+            
+            # Registrar la venta
+            cursor.execute("""
+                INSERT INTO ventas 
+                (id_producto, id_sucursal, cantidad, precio_unitario, total, fecha)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (
+                item['producto_id'],
+                item['sucursal_id'],
+                item['cantidad'],
+                item['precio_unitario'],
+                item['precio_unitario'] * item['cantidad']
+            ))
         
         mysql.connection.commit()
-        return jsonify({'success': True})
+        
+        # Obtener tipo de cambio actual
+        tipo_cambio = obtener_tipo_cambio()
+        total_usd = data['total'] / tipo_cambio
+        
+        return jsonify({
+            'success': True,
+            'total_pesos': data['total'],
+            'total_usd': round(total_usd, 2),
+            'tipo_cambio': tipo_cambio
+        })
     except Exception as e:
         mysql.connection.rollback()
         return jsonify({'error': str(e)}), 500
 
+        
 @app.route('/api/eventos-stock')
 def eventos_stock():
     def generar_eventos():
@@ -96,6 +138,8 @@ def eventos_stock():
                     time.sleep(5)
     
     return Response(generar_eventos(), mimetype='text/event-stream')
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

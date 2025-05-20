@@ -35,38 +35,51 @@ async function buscarProducto() {
 }
 
 // Mostrar resultados de búsqueda
+function mostrarModalAgregar(producto, sucursal) {
+    document.getElementById('modalBody').innerHTML = `
+        <p><strong>Producto:</strong> ${producto.nombre}</p>
+        <p><strong>Sucursal:</strong> ${sucursal.nombre}</p>
+        <p><strong>Stock disponible:</strong> ${sucursal.stock}</p>
+        <p><strong>Precio unitario:</strong> $${producto.precio.toFixed(2)}</p>
+        
+        <div class="mb-3">
+            <label for="cantidadModal" class="form-label">Cantidad:</label>
+            <input type="number" id="cantidadModal" class="form-control" min="1" max="${sucursal.stock}" value="1">
+        </div>
+    `;
+
+    // Configurar el botón de agregar
+    document.getElementById('btnAgregarModal').onclick = function() {
+        agregarAlCarrito(producto, sucursal);
+    };
+
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('modalAgregar'));
+    modal.show();
+}
+
+// Modifica la función mostrarResultados así:
 function mostrarResultados(productos) {
     const contenedor = document.getElementById('resultadosBusqueda');
     contenedor.innerHTML = '';
 
-    if (productos.length === 0) {
-        contenedor.innerHTML = `
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> No se encontraron productos
-            </div>
-        `;
-        return;
-    }
-
     productos.forEach(producto => {
         const productoDiv = document.createElement('div');
-        productoDiv.className = 'card mb-3 producto-card';
+        productoDiv.className = 'card mb-3';
         productoDiv.innerHTML = `
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">${producto.nombre}</h5>
-                <span class="badge bg-primary">$${producto.precio.toFixed(2)}</span>
+            <div class="card-header bg-light">
+                <h5>${producto.nombre} - $${producto.precio.toFixed(2)}</h5>
             </div>
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Disponible en:</h6>
                 ${producto.sucursales.map(sucursal => `
                     <div class="sucursal-item mb-2 p-2 border rounded ${sucursal.stock <= 0 ? 'bg-light text-danger' : 'cursor-pointer hover-item'}" 
                          onclick="${sucursal.stock <= 0 ? '' : `mostrarModalAgregar(${JSON.stringify(producto)}, ${JSON.stringify(sucursal)})`}">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between">
                             <span><i class="bi bi-shop"></i> ${sucursal.nombre}</span>
-                            <span class="badge ${sucursal.stock <= 0 ? 'bg-danger' : 'bg-success'}">
-                                ${sucursal.stock <= 0 ? '<i class="bi bi-exclamation-triangle"></i> Sin stock' : `Stock: ${sucursal.stock}`}
-                            </span>
+                            <span>Stock: ${sucursal.stock}</span>
                         </div>
+                        ${sucursal.stock <= 0 ? '<span class="badge bg-danger ms-2">Sin stock</span>' : ''}
                     </div>
                 `).join('')}
             </div>

@@ -29,7 +29,7 @@ def buscar_productos():
         cursor = mysql.connection.cursor()
         cursor.execute("""
             SELECT p.id, p.nombre, p.precio, 
-                   s.id as sucursal_id, s.nombre as sucursal_nombre, ss.stock
+                s.id as sucursal_id, s.nombre as sucursal_nombre, ss.stock
             FROM productos p
             JOIN stock_sucursal ss ON p.id = ss.id_producto
             JOIN sucursales s ON ss.id_sucursal = s.id
@@ -115,7 +115,7 @@ def procesar_venta():
         mysql.connection.rollback()
         return jsonify({'error': str(e)}), 500
 
-        
+
 @app.route('/api/eventos-stock')
 def eventos_stock():
     def generar_eventos():

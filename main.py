@@ -19,7 +19,7 @@ def obtener_tipo_cambio():
         return data['serie'][0]['valor']
     except Exception as e:
         print(f"Error al obtener tipo de cambio: {str(e)}")
-        return 850  # Valor por defecto si falla la API
+        return 850  
 
 # Endpoint para buscar productos
 @app.route('/api/productos/buscar', methods=['GET'])
@@ -33,7 +33,7 @@ def buscar_productos():
             FROM productos p
             JOIN stock_sucursal ss ON p.id = ss.id_producto
             JOIN sucursales s ON ss.id_sucursal = s.id
-            WHERE p.nombre LIKE %s AND s.nombre != 'Casa Matriz'
+            WHERE p.nombre LIKE %s 
             ORDER BY p.nombre, s.nombre
         """, (f"%{query}%",))
         
@@ -56,14 +56,12 @@ def buscar_productos():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Endpoint para procesar venta
 @app.route('/api/ventas', methods=['POST'])
 def procesar_venta():
     data = request.json
     try:
         cursor = mysql.connection.cursor()
         
-        # Verificar stock para cada item
         for item in data['items']:
             cursor.execute("""
                 SELECT stock FROM stock_sucursal
@@ -73,12 +71,12 @@ def procesar_venta():
             
             stock = cursor.fetchone()
             if not stock or stock['stock'] < item['cantidad']:
+                mysql.connection.rollback() 
                 return jsonify({
                     'success': False,
                     'mensaje': f'Stock insuficiente para {item["nombre"]} en {item["sucursal"]}. Disponible: {stock["stock"] if stock else 0}'
                 }), 400
         
-        # Procesar cada venta
         for item in data['items']:
             cursor.execute("""
                 UPDATE stock_sucursal
@@ -86,7 +84,13 @@ def procesar_venta():
                 WHERE id_producto = %s AND id_sucursal = %s
             """, (item['cantidad'], item['producto_id'], item['sucursal_id']))
             
-            # Registrar la venta
+            if cursor.rowcount != 1:
+                mysql.connection.rollback()
+                return jsonify({
+                    'success': False,
+                    'mensaje': f'Error al actualizar stock para {item["nombre"]}'
+                }), 400
+            
             cursor.execute("""
                 INSERT INTO ventas 
                 (id_producto, id_sucursal, cantidad, precio_unitario, total, fecha)
@@ -101,7 +105,6 @@ def procesar_venta():
         
         mysql.connection.commit()
         
-        # Obtener tipo de cambio actual
         tipo_cambio = obtener_tipo_cambio()
         total_usd = data['total'] / tipo_cambio
         

@@ -7,9 +7,6 @@ body {
     margin-bottom: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.producto-card {
     transition: all 0.3s ease;
 }
 
@@ -60,4 +57,16 @@ body {
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+.sucursal-item {
+    transition: all 0.2s ease;
+}
+
+.modal-content {
+    border-radius: 10px;
+}
+
+.badge {
+    font-weight: normal;
 }

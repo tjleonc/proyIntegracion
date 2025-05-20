@@ -1,6 +1,6 @@
 let productosEncontrados = [];
 let carrito = [];
-let tipoCambioUSD = 0;
+let tipoCambioUSD = 850; // Valor por defecto
 
 // Obtener tipo de cambio al cargar la página
 async function obtenerTipoCambio() {
@@ -11,7 +11,7 @@ async function obtenerTipoCambio() {
         console.log(`Tipo de cambio USD: $${tipoCambioUSD}`);
     } catch (error) {
         console.error("Error al obtener tipo de cambio:", error);
-        tipoCambioUSD = 850; // Valor por defecto si falla la API
+        mostrarNotificacion("No se pudo obtener el tipo de cambio. Usando valor por defecto.", "warning");
     }
 }
 
@@ -35,51 +35,38 @@ async function buscarProducto() {
 }
 
 // Mostrar resultados de búsqueda
-function mostrarModalAgregar(producto, sucursal) {
-    document.getElementById('modalBody').innerHTML = `
-        <p><strong>Producto:</strong> ${producto.nombre}</p>
-        <p><strong>Sucursal:</strong> ${sucursal.nombre}</p>
-        <p><strong>Stock disponible:</strong> ${sucursal.stock}</p>
-        <p><strong>Precio unitario:</strong> $${producto.precio.toFixed(2)}</p>
-        
-        <div class="mb-3">
-            <label for="cantidadModal" class="form-label">Cantidad:</label>
-            <input type="number" id="cantidadModal" class="form-control" min="1" max="${sucursal.stock}" value="1">
-        </div>
-    `;
-
-    // Configurar el botón de agregar
-    document.getElementById('btnAgregarModal').onclick = function() {
-        agregarAlCarrito(producto, sucursal);
-    };
-
-    // Mostrar el modal
-    const modal = new bootstrap.Modal(document.getElementById('modalAgregar'));
-    modal.show();
-}
-
-// Modifica la función mostrarResultados así:
 function mostrarResultados(productos) {
     const contenedor = document.getElementById('resultadosBusqueda');
     contenedor.innerHTML = '';
 
+    if (productos.length === 0) {
+        contenedor.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No se encontraron productos
+            </div>
+        `;
+        return;
+    }
+
     productos.forEach(producto => {
         const productoDiv = document.createElement('div');
-        productoDiv.className = 'card mb-3';
+        productoDiv.className = 'card mb-3 producto-card';
         productoDiv.innerHTML = `
-            <div class="card-header bg-light">
-                <h5>${producto.nombre} - $${producto.precio.toFixed(2)}</h5>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">${producto.nombre}</h5>
+                <span class="badge bg-primary">$${producto.precio.toFixed(2)}</span>
             </div>
             <div class="card-body">
                 <h6 class="card-subtitle mb-2 text-muted">Disponible en:</h6>
                 ${producto.sucursales.map(sucursal => `
                     <div class="sucursal-item mb-2 p-2 border rounded ${sucursal.stock <= 0 ? 'bg-light text-danger' : 'cursor-pointer hover-item'}" 
-                         onclick="${sucursal.stock <= 0 ? '' : `mostrarModalAgregar(${JSON.stringify(producto)}, ${JSON.stringify(sucursal)})`}">
-                        <div class="d-flex justify-content-between">
+                         onclick="${sucursal.stock <= 0 ? '' : `mostrarModalAgregar(${producto.id}, '${producto.nombre.replace(/'/g, "\\'")}', ${producto.precio}, ${sucursal.id}, '${sucursal.nombre.replace(/'/g, "\\'")}', ${sucursal.stock})`}">
+                        <div class="d-flex justify-content-between align-items-center">
                             <span><i class="bi bi-shop"></i> ${sucursal.nombre}</span>
-                            <span>Stock: ${sucursal.stock}</span>
+                            <span class="badge ${sucursal.stock <= 0 ? 'bg-danger' : 'bg-success'}">
+                                ${sucursal.stock <= 0 ? '<i class="bi bi-exclamation-triangle"></i> Sin stock' : `Stock: ${sucursal.stock}`}
+                            </span>
                         </div>
-                        ${sucursal.stock <= 0 ? '<span class="badge bg-danger ms-2">Sin stock</span>' : ''}
                     </div>
                 `).join('')}
             </div>
@@ -88,87 +75,72 @@ function mostrarResultados(productos) {
     });
 }
 
-// Modal para agregar al carrito
-function mostrarModalAgregar(producto, sucursal) {
-    const modalHTML = `
-        <div class="modal fade" id="modalAgregar" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Agregar al carrito</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Producto:</strong> ${producto.nombre}</p>
-                        <p><strong>Sucursal:</strong> ${sucursal.nombre}</p>
-                        <p><strong>Stock disponible:</strong> ${sucursal.stock}</p>
-                        <p><strong>Precio unitario:</strong> $${producto.precio.toFixed(2)}</p>
-                        
-                        <div class="mb-3">
-                            <label for="cantidadModal" class="form-label">Cantidad:</label>
-                            <input type="number" id="cantidadModal" class="form-control" min="1" max="${sucursal.stock}" value="1">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" onclick="agregarAlCarrito(${JSON.stringify(producto)}, ${JSON.stringify(sucursal)})">
-                            <i class="bi bi-cart-plus"></i> Agregar
-                        </button>
-                    </div>
-                </div>
-            </div>
+// Mostrar modal para agregar al carrito
+function mostrarModalAgregar(productoId, productoNombre, productoPrecio, sucursalId, sucursalNombre, stock) {
+    document.getElementById('modalBody').innerHTML = `
+        <p><strong>Producto:</strong> ${productoNombre}</p>
+        <p><strong>Sucursal:</strong> ${sucursalNombre}</p>
+        <p><strong>Stock disponible:</strong> ${stock}</p>
+        <p><strong>Precio unitario:</strong> $${productoPrecio.toFixed(2)}</p>
+        
+        <div class="mb-3">
+            <label for="cantidadModal" class="form-label">Cantidad:</label>
+            <input type="number" id="cantidadModal" class="form-control" min="1" max="${stock}" value="1">
         </div>
     `;
-    
-    // Eliminar modal existente si hay uno
-    const modalExistente = document.getElementById('modalAgregar');
-    if (modalExistente) {
-        modalExistente.remove();
-    }
-    
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Configurar el botón de agregar
+    document.getElementById('btnAgregarModal').onclick = function() {
+        const cantidad = parseInt(document.getElementById('cantidadModal').value);
+        agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId, sucursalNombre, stock, cantidad);
+    };
+
+    // Mostrar el modal
     const modal = new bootstrap.Modal(document.getElementById('modalAgregar'));
     modal.show();
 }
 
 // Agregar producto al carrito
-function agregarAlCarrito(producto, sucursal) {
-    const cantidad = parseInt(document.getElementById('cantidadModal').value);
-    
+function agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId, sucursalNombre, stock, cantidad) {
     if (isNaN(cantidad) || cantidad <= 0) {
         mostrarNotificacion('Ingrese una cantidad válida', 'danger');
         return;
     }
     
-    if (cantidad > sucursal.stock) {
-        mostrarNotificacion(`No hay suficiente stock. Disponible: ${sucursal.stock}`, 'danger');
+    if (cantidad > stock) {
+        mostrarNotificacion(`No hay suficiente stock. Disponible: ${stock}`, 'danger');
         return;
     }
     
     // Buscar si el producto ya está en el carrito
     const itemExistente = carrito.find(item => 
-        item.producto.id === producto.id && item.sucursal.id === sucursal.id
+        item.productoId === productoId && item.sucursalId === sucursalId
     );
     
     if (itemExistente) {
         // Actualizar cantidad si ya existe
-        itemExistente.cantidad += cantidad;
-        if (itemExistente.cantidad > sucursal.stock) {
-            mostrarNotificacion(`No puedes agregar más de ${sucursal.stock} unidades`, 'danger');
-            itemExistente.cantidad = sucursal.stock;
+        const nuevaCantidad = itemExistente.cantidad + cantidad;
+        if (nuevaCantidad > stock) {
+            mostrarNotificacion(`No puedes agregar más de ${stock} unidades`, 'danger');
+            return;
         }
+        itemExistente.cantidad = nuevaCantidad;
     } else {
         // Agregar nuevo item al carrito
         carrito.push({
-            producto: producto,
-            sucursal: sucursal,
-            cantidad: cantidad
+            productoId,
+            productoNombre,
+            productoPrecio,
+            sucursalId,
+            sucursalNombre,
+            stock,
+            cantidad
         });
     }
     
     // Cerrar modal y actualizar vista
     bootstrap.Modal.getInstance(document.getElementById('modalAgregar')).hide();
-    mostrarNotificacion(`Producto agregado al carrito`, 'success');
+    mostrarNotificacion(`"${productoNombre}" agregado al carrito`, 'success');
     actualizarCarrito();
 }
 
@@ -186,17 +158,17 @@ function actualizarCarrito() {
     
     let html = '';
     carrito.forEach((item, index) => {
-        const subtotal = item.producto.precio * item.cantidad;
+        const subtotal = item.productoPrecio * item.cantidad;
         html += `
             <div class="carrito-item mb-3 p-3 border rounded">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h6>${item.producto.nombre}</h6>
+                        <h6>${item.productoNombre}</h6>
                         <p class="small text-muted mb-1">
-                            <i class="bi bi-shop"></i> ${item.sucursal.nombre}
+                            <i class="bi bi-shop"></i> ${item.sucursalNombre}
                         </p>
                         <p class="mb-1">
-                            <span class="badge bg-primary">$${item.producto.precio.toFixed(2)} c/u</span>
+                            <span class="badge bg-primary">$${item.productoPrecio.toFixed(2)} c/u</span>
                             <span class="badge bg-secondary mx-2">x${item.cantidad}</span>
                             <span class="badge bg-success">$${subtotal.toFixed(2)}</span>
                         </p>
@@ -209,7 +181,7 @@ function actualizarCarrito() {
                     <button class="btn btn-sm btn-outline-secondary" onclick="modificarCantidad(${index}, -1)">
                         <i class="bi bi-dash"></i>
                     </button>
-                    <input type="number" min="1" max="${item.sucursal.stock}" value="${item.cantidad}" 
+                    <input type="number" min="1" max="${item.stock}" value="${item.cantidad}" 
                            class="form-control form-control-sm mx-2 cantidad-input" style="width: 60px;"
                            onchange="actualizarItemCarrito(${index}, this.value)">
                     <button class="btn btn-sm btn-outline-secondary" onclick="modificarCantidad(${index}, 1)">
@@ -227,15 +199,16 @@ function actualizarCarrito() {
 
 // Eliminar item del carrito
 function eliminarDelCarrito(index) {
+    const productoNombre = carrito[index].productoNombre;
     carrito.splice(index, 1);
     actualizarCarrito();
-    mostrarNotificacion('Producto eliminado del carrito', 'info');
+    mostrarNotificacion(`"${productoNombre}" eliminado del carrito`, 'info');
 }
 
 // Modificar cantidad de un item
 function modificarCantidad(index, cambio) {
     const nuevaCantidad = carrito[index].cantidad + cambio;
-    if (nuevaCantidad >= 1 && nuevaCantidad <= carrito[index].sucursal.stock) {
+    if (nuevaCantidad >= 1 && nuevaCantidad <= carrito[index].stock) {
         carrito[index].cantidad = nuevaCantidad;
         actualizarCarrito();
     }
@@ -248,9 +221,9 @@ function actualizarItemCarrito(index, nuevaCantidad) {
         nuevaCantidad = 1;
     }
     
-    if (nuevaCantidad > carrito[index].sucursal.stock) {
-        mostrarNotificacion(`No hay suficiente stock. Máximo: ${carrito[index].sucursal.stock}`, 'danger');
-        nuevaCantidad = carrito[index].sucursal.stock;
+    if (nuevaCantidad > carrito[index].stock) {
+        mostrarNotificacion(`No hay suficiente stock. Máximo: ${carrito[index].stock}`, 'danger');
+        nuevaCantidad = carrito[index].stock;
     }
     
     carrito[index].cantidad = nuevaCantidad;
@@ -259,10 +232,10 @@ function actualizarItemCarrito(index, nuevaCantidad) {
 
 // Actualizar totales del carrito
 function actualizarTotales() {
-    const subtotal = carrito.reduce((sum, item) => sum + (item.producto.precio * item.cantidad), 0);
+    const subtotal = carrito.reduce((sum, item) => sum + (item.productoPrecio * item.cantidad), 0);
     const iva = subtotal * 0.19;
     const total = subtotal + iva;
-    const totalUSD = tipoCambioUSD > 0 ? (total / tipoCambioUSD).toFixed(2) : 0;
+    const totalUSD = (total / tipoCambioUSD).toFixed(2);
     
     document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
     document.getElementById('iva').textContent = `$${iva.toFixed(2)}`;

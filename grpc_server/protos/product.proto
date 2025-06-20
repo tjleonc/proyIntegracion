@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package product;
+
+// Mensaje del producto
+message Product {
+  string codigo = 1;
+  string nombre = 2;
+  double precio = 3;
+  bytes imagen = 4;
+}
+
+// Mensaje de respuesta
+message Response {
+  string message = 1;
+  bool success = 2;
+}
+
+// Servicio que maneja productos
+service ProductService {
+  rpc AddProduct(Product) returns (Response);
+}

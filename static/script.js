@@ -1,7 +1,6 @@
 let productosEncontrados = [];
 let carrito = [];
 let tipoCambioUSD = 850; // Valor por defecto
-let eventSourceStock;
 
 // Obtener tipo de cambio al cargar la página
 async function obtenerTipoCambio() {
@@ -27,7 +26,7 @@ async function buscarProducto() {
     try {
         const res = await fetch(`/api/productos/buscar?q=${encodeURIComponent(query)}`);
         if (!res.ok) throw new Error('Error en la búsqueda');
-
+        
         productosEncontrados = await res.json();
         mostrarResultados(productosEncontrados);
     } catch (error) {
@@ -91,7 +90,7 @@ function mostrarModalAgregar(productoId, productoNombre, productoPrecio, sucursa
     `;
 
     // Configurar el botón de agregar
-    document.getElementById('btnAgregarModal').onclick = function () {
+    document.getElementById('btnAgregarModal').onclick = function() {
         const cantidad = parseInt(document.getElementById('cantidadModal').value);
         agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId, sucursalNombre, stock, cantidad);
     };
@@ -107,17 +106,17 @@ function agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId
         mostrarNotificacion('Ingrese una cantidad válida', 'danger');
         return;
     }
-
+    
     if (cantidad > stock) {
         mostrarNotificacion(`No hay suficiente stock. Disponible: ${stock}`, 'danger');
         return;
     }
-
+    
     // Buscar si el producto ya está en el carrito
-    const itemExistente = carrito.find(item =>
+    const itemExistente = carrito.find(item => 
         item.productoId === productoId && item.sucursalId === sucursalId
     );
-
+    
     if (itemExistente) {
         // Actualizar cantidad si ya existe
         const nuevaCantidad = itemExistente.cantidad + cantidad;
@@ -138,7 +137,7 @@ function agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId
             cantidad
         });
     }
-
+    
     // Cerrar modal y actualizar vista
     bootstrap.Modal.getInstance(document.getElementById('modalAgregar')).hide();
     mostrarNotificacion(`"${productoNombre}" agregado al carrito`, 'success');
@@ -149,14 +148,14 @@ function agregarAlCarrito(productoId, productoNombre, productoPrecio, sucursalId
 function actualizarCarrito() {
     const contenedor = document.getElementById('carritoContenido');
     const btnFinalizar = document.getElementById('btnFinalizar');
-
+    
     if (carrito.length === 0) {
         contenedor.innerHTML = '<p class="text-muted">No hay productos en el carrito</p>';
         btnFinalizar.disabled = true;
         actualizarTotales();
         return;
     }
-
+    
     let html = '';
     carrito.forEach((item, index) => {
         const subtotal = item.productoPrecio * item.cantidad;
@@ -192,7 +191,7 @@ function actualizarCarrito() {
             </div>
         `;
     });
-
+    
     contenedor.innerHTML = html;
     btnFinalizar.disabled = false;
     actualizarTotales();
@@ -221,12 +220,12 @@ function actualizarItemCarrito(index, nuevaCantidad) {
     if (isNaN(nuevaCantidad) || nuevaCantidad < 1) {
         nuevaCantidad = 1;
     }
-
+    
     if (nuevaCantidad > carrito[index].stock) {
         mostrarNotificacion(`No hay suficiente stock. Máximo: ${carrito[index].stock}`, 'danger');
         nuevaCantidad = carrito[index].stock;
     }
-
+    
     carrito[index].cantidad = nuevaCantidad;
     actualizarCarrito();
 }
@@ -237,7 +236,7 @@ function actualizarTotales() {
     const iva = subtotal * 0.19;
     const total = subtotal + iva;
     const totalUSD = (total / tipoCambioUSD).toFixed(2);
-
+    
     document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
     document.getElementById('iva').textContent = `$${iva.toFixed(2)}`;
     document.getElementById('total').textContent = `$${total.toFixed(2)}`;
@@ -245,70 +244,13 @@ function actualizarTotales() {
 }
 
 // Finalizar compra
-async function finalizarCompra() {
-    // Validar que hay items en el carrito
-    if (carrito.length === 0) {
-        mostrarNotificacion('El carrito está vacío', 'warning');
-        return;
-    }
-
-    // Preparar los datos para la API
-    const ventaData = {
-        items: carrito.map(item => ({
-            producto_id: item.productoId,
-            nombre: item.productoNombre,
-            sucursal_id: item.sucursalId,
-            sucursal: item.sucursalNombre,
-            cantidad: item.cantidad,
-            precio_unitario: item.productoPrecio,
-            stock: item.stock // Solo para referencia, el backend lo validará
-        })),
-        total: carrito.reduce((total, item) => total + (item.productoPrecio * item.cantidad), 0)
-    };
-
-    try {
-        // Mostrar carga mientras se procesa
-        const btnFinalizar = document.getElementById('btnFinalizar');
-        btnFinalizar.disabled = true;
-        btnFinalizar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
-
-        // Llamar a la API
-        const response = await fetch('/api/ventas', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(ventaData)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.mensaje || 'Error al procesar la venta');
-        }
-
-        // Éxito - mostrar resultados
-        mostrarNotificacion(`Venta procesada con éxito! Total: $${data.total_pesos.toFixed(2)} ($${data.total_usd} USD)`, 'success');
-        
-        // Limpiar carrito
-        carrito = [];
-        actualizarCarrito();
-
-        // Opcional: recargar datos de productos
-        if (productosEncontrados.length > 0) {
-            buscarProducto();
-        }
-
-    } catch (error) {
-        mostrarNotificacion(error.message, 'danger');
-        console.error('Error al finalizar compra:', error);
-    } finally {
-        // Restaurar botón
-        const btnFinalizar = document.getElementById('btnFinalizar');
-        btnFinalizar.disabled = false;
-        btnFinalizar.innerHTML = '<i class="bi bi-check-circle"></i> Finalizar Compra';
-    }
+function finalizarCompra() {
+    // Aquí iría la lógica para procesar la compra
+    mostrarNotificacion('Compra finalizada con éxito', 'success');
+    carrito = [];
+    actualizarCarrito();
 }
+
 // Mostrar notificaciones
 function mostrarNotificacion(mensaje, tipo = 'info') {
     const iconos = {
@@ -317,7 +259,7 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         'warning': 'bi-exclamation-circle',
         'info': 'bi-info-circle'
     };
-
+    
     const notificacion = document.createElement('div');
     notificacion.className = `alert alert-${tipo} alert-dismissible fade show`;
     notificacion.innerHTML = `
@@ -325,79 +267,42 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     document.getElementById('notificaciones').prepend(notificacion);
-
+    
     setTimeout(() => {
         notificacion.classList.remove('show');
         setTimeout(() => notificacion.remove(), 150);
     }, 5000);
 }
 
-// Función para iniciar la conexión SSE
-function iniciarConexionSSE() {
-    // Cerrar conexión existente si hay una
-    if (eventSourceStock) {
-        eventSourceStock.close();
-    }
 
-    // Crear nueva conexión SSE
-    eventSourceStock = new EventSource('/api/eventos-stock');
+document.getElementById("formularioProducto").addEventListener("submit", async function (e) {
+      e.preventDefault();
 
-    // Manejador para mensajes recibidos
-    eventSourceStock.onmessage = function(event) {
-        console.log('Evento de stock recibido:', event.data);
-        mostrarNotificacion(event.data, 'warning');
-        
-        // Opcional: actualizar la búsqueda si hay productos visibles
-        if (productosEncontrados.length > 0) {
-            buscarProducto(); // Esto refrescará los datos de stock
-        }
-    };
+      const form = e.target;
+      const formData = new FormData(form);
 
-    // Manejador de errores
-    eventSourceStock.onerror = function(error) {
-        console.error('Error en conexión SSE:', error);
-        
-        // Intentar reconectar después de 5 segundos
-        setTimeout(iniciarConexionSSE, 5000);
-    };
-}
+      const response = await fetch("/api/agregar_producto", {
+        method: "POST",
+        body: formData
+      });
 
-// Modifica el DOMContentLoaded para iniciar la conexión SSE
+      const data = await response.json();
+
+      // Mostrar alerta de éxito
+      const alerta = document.getElementById("alerta");
+      alerta.textContent = data.mensaje;
+      alerta.classList.remove("d-none");
+
+      // Limpiar formulario (opcional)
+      form.reset();
+    });
+
+// Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     obtenerTipoCambio();
-    iniciarConexionSSE();  // <-- Agrega esta línea
     
     // Buscar al presionar Enter
     document.getElementById('buscarInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') buscarProducto();
     });
 });
-
-async function iniciarPagoTransbank(total) {
-    try {
-        const response = await fetch('/api/pago/transbank/iniciar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                monto: total,
-                ordenCompra: `ORD-${Date.now()}`,
-                sesionId: `SES-${Math.random().toString(36).substr(2, 9)}`
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al iniciar pago');
-        }
-        
-        // Redirigir a Transbank
-        window.location.href = data.url;
-        
-    } catch (error) {
-        console.error('Error en pago Transbank:', error);
-        mostrarNotificacion(`Error en pago: ${error.message}`, 'danger');
-    }
-}

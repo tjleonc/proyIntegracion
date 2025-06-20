@@ -1,6 +1,12 @@
 from flask import Flask, jsonify, request, Response, render_template
 from flask_mysqldb import MySQL
 from config import config
+import grpc
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "protos")))
+import product_pb2
+import product_pb2_grpc
+
 
 import time
 import requests
@@ -12,6 +18,10 @@ mysql = MySQL(app)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/agregar_producto')
+def agregarProducto():
+    return render_template('agregar_producto.html')
 
 def obtener_tipo_cambio():
     try:
@@ -132,7 +142,26 @@ def eventos_stock():
     
     return Response(generar_eventos(), mimetype='text/event-stream')
 
+# Implementación para realizar conexión con servidor gRPC
+@app.route('/api/agregar_producto', methods=['POST'])
+def receive_form():
+    codigo = request.form['codigo']
+    nombre = request.form['nombre']
+    precio = float(request.form['precio'])
+    imagen = request.files['imagen'].read()
 
+    # Conectar al servidor gRPC
+    channel = grpc.insecure_channel('localhost:50051')
+    stub = product_pb2_grpc.ProductServiceStub(channel)
+
+    product = product_pb2.Product(
+        codigo=codigo,
+        nombre=nombre,
+        precio=precio,
+        imagen=imagen
+    )
+    response = stub.AddProduct(product)
+    return jsonify({'mensaje': response.message})
 
 if __name__ == '__main__':
     app.run(debug=True)

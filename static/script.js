@@ -1,6 +1,7 @@
 let productosEncontrados = [];
 let carrito = [];
 let tipoCambioUSD = 850; // Valor por defecto
+let sse = null;
 
 // Obtener tipo de cambio al cargar la página
 async function obtenerTipoCambio() {
@@ -29,6 +30,13 @@ async function buscarProducto() {
         
         productosEncontrados = await res.json();
         mostrarResultados(productosEncontrados);
+
+        // Aquí inicia el SSE
+        if (sse) sse.close();
+        sse = new EventSource("/api/eventos-stock");
+        sse.onmessage = function (event) {
+            mostrarNotificacion(event.data, 'warning');
+        };
     } catch (error) {
         mostrarNotificacion(error.message, 'danger');
     }
@@ -274,6 +282,16 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     }, 5000);
 }
 
+// Inicialización
+document.addEventListener('DOMContentLoaded', () => {
+    obtenerTipoCambio();
+    
+    // Buscar al presionar Enter
+    document.getElementById('buscarInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') buscarProducto();
+    });
+});
+
 
 document.getElementById("formularioProducto").addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -296,13 +314,3 @@ document.getElementById("formularioProducto").addEventListener("submit", async f
       // Limpiar formulario (opcional)
       form.reset();
     });
-
-// Inicialización
-document.addEventListener('DOMContentLoaded', () => {
-    obtenerTipoCambio();
-    
-    // Buscar al presionar Enter
-    document.getElementById('buscarInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') buscarProducto();
-    });
-});

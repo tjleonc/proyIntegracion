@@ -131,10 +131,10 @@ def eventos_stock():
                         FROM stock_sucursal ss
                         JOIN productos p ON ss.id_producto = p.id
                         JOIN sucursales s ON ss.id_sucursal = s.id
-                        WHERE ss.stock = 0 AND s.nombre != 'Casa Matriz'
+                        WHERE ss.stock < 15 AND s.nombre != 'Casa Matriz'
                     """)
                     for row in cursor:
-                        yield f"data: Stock agotado en {row['sucursal']} para {row['producto']}\n\n"
+                        yield f"data: Stock bajo en {row['sucursal']} para {row['producto']}\n\n"
                     time.sleep(10)
                 except Exception as e:
                     print(f"Error SSE: {str(e)}")
